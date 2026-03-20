@@ -1,114 +1,123 @@
 # Product Recommendation System in Node.js
 
-This repository contains a working product recommendation prototype built in Node.js.
+This is a Node.js product recommendation prototype.
 
-It includes:
+I built it to compare different retrieval methods step by step instead of jumping directly to one final approach.
 
-- exact brute-force retrieval
-- `k`-means clustering for candidate generation
-- binary space partitioning (BSP) tree search
-- HNSW-based approximate nearest neighbor search using `hnswlib-node`
-- `k`-means-based compression using product quantization (PQ)
+Right now the project includes:
 
-The current version is meant to be a practical prototype you can run, explain, and extend.
+- exact brute-force search
+- `k`-means clustering
+- binary space partitioning (BSP)
+- HNSW with `hnswlib-node`
+- product quantization (PQ) for compression
 
-## Current Status
+The main idea is simple:
 
-This push includes a full prototype, not just Day 1 work.
+- each product is treated like a vector
+- the user/query is also treated like a vector
+- we search for the nearest product vectors
+- then we compare speed, recall, and storage
 
-What is already done:
+## What is done now
 
-- sample product catalog generation with vector embeddings
+This repo is already beyond just the starting stage.
+
+Current work done:
+
+- sample product catalog with generated embeddings
 - exact baseline recommender
 - recall, latency, and storage comparison
 - `k`-means recommender
 - BSP recommender
 - HNSW recommender
 - PQ compression flow
-- runnable benchmark demo
+- benchmark/demo script
 
-## Tech Stack
+So this is the current working prototype, not only Day 1 work.
+
+## Tech used
 
 - Node.js 20+
 - ES modules
-- optional native dependency: `hnswlib-node`
+- `hnswlib-node` as an optional dependency
 
-## Project Structure
+## Project files
 
-Main files:
+- `src/demo.js` - runs the benchmark and prints sample recommendations
+- `src/data/sampleCatalog.js` - creates sample product vectors and query vectors
+- `src/recommenders/exactRecommender.js` - exact baseline search
+- `src/recommenders/kmeansRecommender.js` - cluster based retrieval
+- `src/recommenders/bspRecommender.js` - BSP tree based retrieval
+- `src/recommenders/hnswRecommender.js` - HNSW based retrieval
+- `src/recommenders/pqRecommender.js` - compressed retrieval using PQ
+- `src/compression/productQuantizer.js` - PQ training and encoding logic
+- `src/algorithms/kmeans.js` - shared `k`-means logic
 
-- `src/demo.js` runs the benchmark and sample recommendations
-- `src/data/sampleCatalog.js` creates sample product vectors and query vectors
-- `src/recommenders/exactRecommender.js` exact cosine-similarity baseline
-- `src/recommenders/kmeansRecommender.js` cluster-first retrieval
-- `src/recommenders/bspRecommender.js` BSP tree retrieval
-- `src/recommenders/hnswRecommender.js` HNSW retrieval
-- `src/recommenders/pqRecommender.js` compressed retrieval using PQ
-- `src/compression/productQuantizer.js` PQ training and encoding logic
-- `src/algorithms/kmeans.js` shared `k`-means implementation
+## How the system works
 
-## How It Works
+Flow is:
 
-The recommendation flow is:
+1. create product vectors
+2. create query vectors
+3. search for nearest products
+4. compare methods using recall and speed
 
-1. represent each product as a vector
-2. represent a user/session/query as a vector
-3. search for nearest product vectors
-4. compare retrieval quality and speed across methods
+The current demo uses synthetic data so the project can run immediately.
 
-The demo uses synthetic embeddings so the project works out of the box.
+## Methods used
 
-## Retrieval Methods
+### 1. Exact search
 
-### 1. Exact Search
+This is the baseline.
 
-This is the brute-force baseline.
+- checks all product vectors
+- gives the ground truth nearest neighbors
+- used to compare the approximate methods
 
-- checks every product vector
-- gives ground-truth nearest neighbors
-- used to measure recall for approximate methods
+### 2. `k`-means
 
-### 2. `k`-Means Retrieval
+Here the product vectors are first grouped into clusters.
 
-This method:
+For a query:
 
-- clusters product vectors
-- finds the nearest centroids for a query
-- searches only inside those cluster members
+- find the nearest centroids
+- collect products from those clusters
+- rerank only those candidates
 
-This is a simple way to reduce the candidate set before reranking.
+This reduces the number of products we need to search directly.
 
-### 3. BSP Retrieval
+### 3. BSP
 
-This method:
+This method builds a binary space partition tree.
 
-- splits the vector space recursively
-- stores products in leaf nodes
-- visits the most promising leaves first
+- the vector space is split recursively
+- products are stored in leaves
+- query search visits the most promising leaves first
 
-It is useful as a tree-based approximate search baseline.
+This gives a tree-based approximate search baseline.
 
-### 4. HNSW Retrieval
+### 4. HNSW
 
-This method uses `hnswlib-node` for graph-based approximate nearest neighbor search.
+This uses `hnswlib-node` for approximate nearest neighbor search.
 
-It usually gives the best speed/recall tradeoff among the methods in this prototype.
+Among the current methods, this usually gives the best speed and recall balance.
 
-### 5. PQ Compression
+### 5. PQ compression
 
-This method compresses product vectors to save space.
+This part is for saving storage.
 
-It works like this:
+The steps are:
 
-1. split each vector into smaller sub-vectors
-2. run `k`-means on each subspace
-3. replace each sub-vector with a centroid id
-4. estimate distances using compressed codes
-5. rerank the top candidates
+1. split each vector into smaller parts
+2. run `k`-means on each part
+3. store centroid ids instead of full vectors
+4. estimate distances using the compressed codes
+5. rerank top candidates
 
-This helps reduce storage while keeping useful retrieval quality.
+This helps reduce memory while still keeping useful retrieval quality.
 
-## Setup
+## How to run
 
 Install dependencies:
 
@@ -116,72 +125,75 @@ Install dependencies:
 npm install
 ```
 
-Run the demo:
+Run the main demo:
 
 ```bash
 npm run demo
 ```
 
-Quick smoke test:
+Run a smaller smoke test:
 
 ```bash
 npm run smoke
 ```
 
-Larger benchmark:
+Run a larger benchmark:
 
 ```bash
 npm run demo:large
 ```
 
-You can also run with custom options:
+Custom run example:
 
 ```bash
 node src/demo.js --products 5000 --queries 50 --topK 10 --clusters 48 --subspaces 4 --codebook 32
 ```
 
-## Benchmark Metrics
+## What the benchmark checks
 
-The demo compares methods using:
+The demo compares:
 
 - `recall@k`
 - average query latency
 - candidate count
-- storage estimate for PQ
+- PQ storage estimate
 
-## Notes About HNSW
+## HNSW note
 
-`hnswlib-node` is listed as an optional dependency.
+`hnswlib-node` is optional.
 
-If it installs successfully, the HNSW benchmark runs normally.
-If it does not install on a machine, the rest of the project still works.
+If it installs properly, HNSW runs normally.
+If not, the rest of the project still works.
 
-## What To Replace For Real Use
+## For real project use
 
-For a real recommendation system, replace:
+To make this work on a real product catalog, replace:
 
-- `src/data/sampleCatalog.js` with your real product embeddings
-- `src/demo.js` with an API route, batch job, or service entry point
-- synthetic query vectors with real user/session/query embeddings
-- simple reranking with real business rules such as stock, price, or category filters
+- `src/data/sampleCatalog.js` with real product embeddings
+- `src/demo.js` with an API route or service entry point
+- synthetic queries with real user or session embeddings
+- simple reranking with business rules like stock, price, or category filters
 
-## What To Do Next
+## What I finished today
 
-Good next steps after this push:
+This is the current working prototype.
+
+It includes:
+
+- Node.js recommendation system setup
+- exact search baseline
+- `k`-means retrieval
+- BSP retrieval
+- HNSW retrieval
+- product quantization compression
+- benchmark and demo code
+
+## Next steps
+
+Next practical steps are:
 
 - load real product data
-- expose retrieval through an API
+- expose the retriever through an API
 - add filtering and reranking
-- benchmark on your actual catalog
-- choose one retrieval strategy for production
-
-## Commit Scope For Today
-
-This README matches the current repo state as a complete prototype milestone.
-
-If you push today, you are pushing:
-
-- the initial Node.js recommendation prototype
-- all retrieval approaches implemented so far
-- compression support
-- benchmark/demo code
+- benchmark on real catalog data
+- choose the best retrieval method for production
