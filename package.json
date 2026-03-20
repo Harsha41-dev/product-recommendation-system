@@ -1,0 +1,18 @@
+{
+  "name": "product-recommendation-system",
+  "version": "1.0.0",
+  "description": "Node.js recommendation system demo with k-means, BSP, HNSW, and k-means-based compression.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "demo": "node src/demo.js",
+    "demo:large": "node src/demo.js --products 10000 --queries 100 --topK 10 --clusters 64 --subspaces 8 --codebook 32",
+    "smoke": "node src/demo.js --products 1500 --queries 20 --topK 5"
+  },
+  "optionalDependencies": {
+    "hnswlib-node": "^3.0.0"
+  }
+}
+
