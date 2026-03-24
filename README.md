@@ -26,6 +26,7 @@ This repo is already beyond just the starting stage.
 Current work done:
 
 - sample product catalog with generated embeddings
+- real catalog loading from JSON or JSONL files
 - exact baseline recommender
 - recall, latency, and storage comparison
 - `k`-means recommender
@@ -149,6 +150,37 @@ Custom run example:
 node src/demo.js --products 5000 --queries 50 --topK 10 --clusters 48 --subspaces 4 --codebook 32
 ```
 
+Real data example:
+
+```bash
+node src/demo.js --data examples/real-catalog.sample.json --topK 3
+```
+
+If you have products and queries in separate files:
+
+```bash
+node src/demo.js --data your-products.json --queries-file your-queries.json --topK 10
+```
+
+Supported input formats:
+
+- JSON array of products
+- JSON object with `products` and optional `queries`
+- JSONL / NDJSON for product records
+
+Accepted vector fields:
+
+- `vector`
+- `embedding`
+- `values`
+
+The loader normalizes vectors by default.
+If you want to keep the original scale, run with:
+
+```bash
+node src/demo.js --data your-products.json --keep-scale
+```
+
 ## What the benchmark checks
 
 The demo compares:
@@ -181,6 +213,7 @@ This is the current working prototype.
 It includes:
 
 - Node.js recommendation system setup
+- real data loading for benchmark runs
 - exact search baseline
 - `k`-means retrieval
 - BSP retrieval

@@ -1,4 +1,6 @@
 import { performance } from "node:perf_hooks";
+import path from "node:path";
+import { loadRealCatalog } from "./data/realCatalog.js";
 import { createQueryProfiles, createSampleCatalog } from "./data/sampleCatalog.js";
 import { mean, recallAtK } from "./evaluation/metrics.js";
 import { createBSPRecommender } from "./recommenders/bspRecommender.js";
@@ -19,6 +21,27 @@ function getFlagValue(flag, fallback) {
   }
 
   return process.argv[index + 1];
+}
+
+function hasFlag(flag) {
+  return process.argv.includes(flag);
+}
+
+function resolveSubspaceCount(dimension, requestedSubspaceCount) {
+  let best = 1;
+  let limit = requestedSubspaceCount;
+
+  if (limit > dimension) {
+    limit = dimension;
+  }
+
+  for (let value = 1; value <= limit; value += 1) {
+    if (dimension % value === 0) {
+      best = value;
+    }
+  }
+
+  return best;
 }
 
 async function benchmarkRecommender(label, recommender, queries, topK, referenceResults) {
@@ -98,18 +121,65 @@ async function main() {
   const clusterCount = Number(getFlagValue("--clusters", 32));
   const subspaceCount = Number(getFlagValue("--subspaces", 4));
   const codebookSize = Number(getFlagValue("--codebook", 16));
+  const seed = Number(getFlagValue("--seed", 42));
+  const dataPath = getFlagValue("--data", "");
+  const queriesPath = getFlagValue("--queries-file", "");
+  const keepScale = hasFlag("--keep-scale");
 
-  const catalog = createSampleCatalog({
-    productCount: productCount,
-    dimension: dimension
-  });
+  let products = [];
+  let queries = [];
+  let activeDimension = dimension;
+  let sourceLabel = "synthetic sample data";
+  let querySourceLabel = "generated synthetic queries";
 
-  const products = catalog.products;
-  const categoryCenters = catalog.categoryCenters;
-  const queries = createQueryProfiles({
-    count: queryCount,
-    categoryCenters: categoryCenters
-  });
+  if (dataPath) {
+    const realCatalog = await loadRealCatalog({
+      dataPath: dataPath,
+      queriesPath: queriesPath,
+      queryCount: queryCount,
+      seed: seed,
+      normalizeVectors: !keepScale
+    });
+
+    products = realCatalog.products;
+    queries = realCatalog.queries;
+    activeDimension = realCatalog.meta.dimension;
+    sourceLabel = `file data (${path.basename(realCatalog.meta.dataPath)})`;
+
+    if (realCatalog.meta.querySource === "query-file") {
+      querySourceLabel = `queries file (${path.basename(realCatalog.meta.queriesPath)})`;
+    } else if (realCatalog.meta.querySource === "data-file") {
+      querySourceLabel = "queries from data file";
+    } else {
+      querySourceLabel = "queries sampled from products";
+    }
+  } else {
+    const catalog = createSampleCatalog({
+      productCount: productCount,
+      dimension: dimension,
+      seed: seed
+    });
+
+    products = catalog.products;
+    const categoryCenters = catalog.categoryCenters;
+    queries = createQueryProfiles({
+      count: queryCount,
+      seed: seed + 1,
+      categoryCenters: categoryCenters
+    });
+  }
+
+  let effectiveClusterCount = clusterCount;
+  if (effectiveClusterCount > products.length) {
+    effectiveClusterCount = products.length;
+  }
+
+  let effectiveCodebookSize = codebookSize;
+  if (effectiveCodebookSize > products.length) {
+    effectiveCodebookSize = products.length;
+  }
+
+  const effectiveSubspaceCount = resolveSubspaceCount(activeDimension, subspaceCount);
 
   const exact = createExactRecommender(products);
   await exact.build();
@@ -136,8 +206,8 @@ async function main() {
     await benchmarkRecommender(
       "kmeans",
       createKMeansRecommender(products, {
-        clusterCount: clusterCount,
-        probeClusters: Math.min(4, clusterCount)
+        clusterCount: effectiveClusterCount,
+        probeClusters: Math.min(4, effectiveClusterCount)
       }),
       queries,
       topK,
@@ -162,8 +232,8 @@ async function main() {
     await benchmarkRecommender(
       "pq",
       createPQRecommender(products, {
-        subspaceCount: subspaceCount,
-        codebookSize: codebookSize,
+        subspaceCount: effectiveSubspaceCount,
+        codebookSize: effectiveCodebookSize,
         rerankCandidates: Math.max(topK * 6, 50)
       }),
       queries,
@@ -186,7 +256,11 @@ async function main() {
 
   console.log("");
   console.log(
-    `Catalog size: ${productCount} products | Query count: ${queryCount} | Dimension: ${dimension}`
+    `Catalog size: ${products.length} products | Query count: ${queries.length} | Dimension: ${activeDimension}`
+  );
+  console.log(`Source: ${sourceLabel} | Query source: ${querySourceLabel}`);
+  console.log(
+    `Clusters: ${effectiveClusterCount} | Subspaces: ${effectiveSubspaceCount} | Codebook size: ${effectiveCodebookSize}`
   );
 
   const summaryRows = [];
