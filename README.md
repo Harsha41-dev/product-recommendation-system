@@ -27,6 +27,7 @@ Current work done:
 
 - sample product catalog with generated embeddings
 - real catalog loading from JSON or JSONL files
+- recommendation API with startup-loaded catalog
 - exact baseline recommender
 - recall, latency, and storage comparison
 - `k`-means recommender
@@ -144,6 +145,18 @@ Run a larger benchmark:
 npm run demo:large
 ```
 
+Run the API server:
+
+```bash
+npm run server
+```
+
+Run the API with the sample real catalog:
+
+```bash
+npm run server:sample
+```
+
 Custom run example:
 
 ```bash
@@ -181,6 +194,51 @@ If you want to keep the original scale, run with:
 node src/demo.js --data your-products.json --keep-scale
 ```
 
+## API
+
+The API loads product data once when the server starts.
+
+Main route:
+
+- `POST /recommend`
+
+Useful route:
+
+- `GET /health`
+
+Example request:
+
+```json
+{
+  "vector": [0.91, 0.8, 0.13, 0.1, 0.62, 0.56, 0.12, 0.08],
+  "topK": 3,
+  "category": "electronics",
+  "minPrice": 100,
+  "maxPrice": 700
+}
+```
+
+Example curl:
+
+```bash
+curl -X POST http://localhost:3000/recommend -H "Content-Type: application/json" -d "{\"vector\":[0.91,0.8,0.13,0.1,0.62,0.56,0.12,0.08],\"topK\":3,\"category\":\"electronics\"}"
+```
+
+Request fields:
+
+- `vector` or `embedding`
+- `topK`
+- `category` as a string or list
+- `minPrice`
+- `maxPrice`
+- optional `method`: `auto`, `hnsw`, or `exact`
+
+How it works:
+
+- by default it uses HNSW if available
+- if HNSW is not available, it falls back to exact search
+- if filters are used, it does exact search on the filtered product set
+
 ## What the benchmark checks
 
 The demo compares:
@@ -214,6 +272,7 @@ It includes:
 
 - Node.js recommendation system setup
 - real data loading for benchmark runs
+- recommendation API with basic filters
 - exact search baseline
 - `k`-means retrieval
 - BSP retrieval
@@ -226,7 +285,6 @@ It includes:
 Next practical steps are:
 
 - load real product data
-- expose the retriever through an API
 - add filtering and reranking
 - benchmark on real catalog data
 - choose the best retrieval method for production

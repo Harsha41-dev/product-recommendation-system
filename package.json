@@ -9,10 +9,14 @@
   "scripts": {
     "demo": "node src/demo.js",
     "demo:large": "node src/demo.js --products 10000 --queries 100 --topK 10 --clusters 64 --subspaces 8 --codebook 32",
-    "smoke": "node src/demo.js --products 1500 --queries 20 --topK 5"
+    "smoke": "node src/demo.js --products 1500 --queries 20 --topK 5",
+    "server": "node src/server.js",
+    "server:sample": "node src/server.js --data examples/real-catalog.sample.json"
   },
   "optionalDependencies": {
     "hnswlib-node": "^3.0.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
-
